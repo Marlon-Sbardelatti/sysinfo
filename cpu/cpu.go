@@ -8,15 +8,17 @@ import (
 )
 
 type CpuStatic struct {
-	VendorId  string
-	ModelName string
-	Stepping  string
-	Microcode string
-	Threads   int
+	VendorId     string
+	ModelName    string
+	Stepping     string
+	Microcode    string
+	Cores        int
+	Threads      int
+	Architecture string
 }
 
 func GetCpuStaticInfo() *CpuStatic {
-	vendorId, modelName, stepping, microcode := getProcCpuInfo("/proc/cpuinfo")
+	vendorId, modelName, stepping, microcode, cores := getProcCpuInfo("/proc/cpuinfo")
 	threads := getTotalThreads("/sys/devices/system/cpu/online")
 	// threads := getTotalThreads("/home/hetzwga/testecpu.txt")
 	return &CpuStatic{
@@ -24,11 +26,12 @@ func GetCpuStaticInfo() *CpuStatic {
 		ModelName: modelName,
 		Stepping:  stepping,
 		Microcode: microcode,
+		Cores:     cores,
 		Threads:   threads,
 	}
 }
 
-func getProcCpuInfo(path string) (string, string, string, string) {
+func getProcCpuInfo(path string) (string, string, string, string, int) {
 	file, err := os.Open(path)
 	if err != nil {
 		panic(err)
@@ -40,6 +43,7 @@ func getProcCpuInfo(path string) (string, string, string, string) {
 	var modelName string
 	var stepping string
 	var microcode string
+	var cores int
 
 	scanner := bufio.NewScanner(file)
 
@@ -56,11 +60,19 @@ func getProcCpuInfo(path string) (string, string, string, string) {
 			stepping = strings.Split(line, ":")[1]
 		} else if strings.HasPrefix(line, "microcode") {
 			microcode = strings.Split(line, ":")[1]
+		} else if strings.HasPrefix(line, "cpu cores") {
+			coresStr := strings.Split(line, ":")[1]
+			cores, err = strconv.Atoi(strings.TrimSpace(coresStr))
+			if err != nil {
+				panic(err)
+			}
+		} else if strings.HasPrefix(line, "flags") {
+
 		}
 
 	}
 
-	return vendorId, modelName, stepping, microcode
+	return vendorId, modelName, stepping, microcode, cores
 }
 
 func getTotalThreads(path string) int {
